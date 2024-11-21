@@ -32,6 +32,28 @@ c.execute('''CREATE TABLE IF NOT EXISTS loyalty_points_history (
              )''')
 conn.commit()
 
+def display_about_page():
+    st.markdown("<h3 style='color: #3D3D3D;'>☕ About Mug Life</h3>", unsafe_allow_html=True)
+    st.write(
+        """
+        Mug Life, located in Seri Iskandar, is a coffee shop designed to cater to the needs of busy students at 
+        Universiti Teknologi PETRONAS (UTP). The goal of Mug Life is to offer good coffee and a friendly ambiance 
+        for students to grab a drink, get some work done, or just hang out.
+        """
+    )
+
+    st.markdown("<h4 style='color: #3D3D3D;'>📋 Team Members</h4>", unsafe_allow_html=True)
+    
+    # Display team member details in a clean table format
+    team_data = {
+        "Name": ["Melson Jens", "Chin Yi Han", "Moong Jie Ying", "Muhammad Farhan Bin Anuar"],
+        "Student ID": ["21000536", "21002463", "20001884", "21002286"],
+        "Program": ["Computer Science", "Computer Science", "Information Technology", "Information Technology"]
+    }
+    team_df = pd.DataFrame(team_data)
+
+    st.table(team_df)
+
 # Function to hash passwords for security
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -289,8 +311,8 @@ daily_offers = {
     "Wednesday": {"description": "Buy 1 Get 1 Free on all Americanos", "coffee_type": "Americano", "discount": "bogo"},
     "Thursday": {"description": "10% off on all americano", "coffee_type": "Americano", "discount": 0.1},
     "Friday": {"description": "10% off on all Caramel Macchiatos", "coffee_type": "Caramel Macchiato", "discount": 0.1},
-    "Sunday": {"description": "Double loyalty points on all purchases", "coffee_type": "all", "discount": "double_points"},
-    "Saturday": {"description": "Relax and enjoy - no special offers today!", "coffee_type": "any", "discount": None}
+    "Saturday": {"description": "Relax and enjoy - no special offers today!", "coffee_type": "any", "discount": None},
+    "Sunday": {"description": "Double loyalty points on all purchases", "coffee_type": "all", "discount": "double_points"}
 }
 
 # Front Page Coffee Menu Display with clean, professional formatting
@@ -303,7 +325,7 @@ def display_menu():
                 padding: 20px;
                 border-radius: 15px;
                 box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-                margin-bottom: 40px;
+                margin-bottom: 10px;
             }
             .menu-title {
                 color: #2C3E50;
@@ -311,6 +333,28 @@ def display_menu():
                 font-weight: bold;
                 margin-bottom: 25px;
                 text-align: center;
+            }
+            .offer-section {
+                margin-top: 30px;
+                background-color: #ffffff;
+                padding: 15px;
+                border-radius: 10px;
+                box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.05);
+                margin-bottom: 20px;
+            }
+            .offer-title {
+                font-size: 23px;
+                font-weight: bold;
+                color: #2C3E50;
+                margin-bottom: 10px;
+                text-align: center;
+            }
+            .offer-item {
+                font-size: 20px;
+                font-weight: bold;
+                color: #2C3E50;
+                text-align: center;
+                margin-top: 5px;
             }
             .menu-item-box {
                 background-color: #f9f9f9;
@@ -357,6 +401,17 @@ def display_menu():
 
     # Main menu container
     st.markdown("<div class='menu-container'>", unsafe_allow_html=True)
+    daily_offer = get_daily_offer()
+
+    # Today's Offer section
+    st.markdown(
+        f"""
+        <div class="offer-section">
+            <div class="offer-title">🌟 Today's Offer</div>
+            <div class="offer-item">{daily_offer['description']}</div>
+        </div>
+        """, unsafe_allow_html=True
+    )    
 
     # Styling each coffee item with box-style layout
     for coffee, sizes in coffee_menu.items():
@@ -1393,4 +1448,81 @@ if __name__ == "__main__":
     authenticate_user()
     main_content()
 
+# Add store selection to session state
+if 'store' not in st.session_state:
+    st.session_state.store = "Ampang Park"
 
+if 'stores_inventory' not in st.session_state:
+    st.session_state.stores_inventory = {
+        "Ampang Park": {
+            "coffee_beans": 1000,
+            "milk": 1000,
+            "sugar": 1000,
+            "cups": 500
+        },
+        "KLCC": {
+            "coffee_beans": 800,
+            "milk": 800,
+            "sugar": 800,
+            "cups": 400
+        },
+        "Persiaran TRX": {
+            "coffee_beans": 1200,
+            "milk": 1200,
+            "sugar": 1200,
+            "cups": 600
+        },
+        "KLIA 1": {
+            "coffee_beans": 900,
+            "milk": 900,
+            "sugar": 900,
+            "cups": 450
+        },
+    }
+
+# Function to get inventory for the selected store
+def get_store_inventory():
+    return st.session_state.stores_inventory[st.session_state.store]
+
+# Function to update inventory for the selected store
+def update_store_inventory(item, amount):
+    st.session_state.stores_inventory[st.session_state.store][item] += amount
+
+# Modify authentication function to include store selection
+def authenticate_user_with_store():
+    if 'user' in st.session_state:
+        st.sidebar.selectbox("Select Store Location", 
+                             ["Ampang Park", "KLCC", "Persiaran TRX", "KLIA 1"], 
+                             key='store')
+        st.write(f"Current Store: **{st.session_state.store}**")
+    else:
+        authenticate_user()
+
+# Update inventory management to use selected store inventory
+def display_inventory_with_store():
+    inventory = get_store_inventory()
+    st.write(f"Current Store: **{st.session_state.store}**")
+    st.write("Here's a summary of the current inventory levels for essential items:")
+    st.table(pd.DataFrame([inventory]).T.rename(columns={0: "Quantity"}))
+
+    item_to_restock = st.selectbox("Select item to restock", list(inventory.keys()))
+    restock_amount = st.number_input("Enter restock amount", min_value=0, step=10)
+
+    if st.button("Restock"):
+        update_store_inventory(item_to_restock, restock_amount)
+        st.success(f"Restocked {item_to_restock} by {restock_amount}. New total: {inventory[item_to_restock]}")
+
+# Use the new authentication and inventory display functions
+if __name__ == "__main__":
+    st.sidebar.title("Navigation")
+    selected_page = st.sidebar.radio("Go to:", ["Home", "About"])
+
+    if selected_page == "Home":
+        authenticate_user_with_store()
+        if 'user' in st.session_state:
+            if st.session_state.get('is_admin'):
+                display_inventory_with_store()
+            else:
+                display_menu()
+    elif selected_page == "About":
+        display_about_page()
